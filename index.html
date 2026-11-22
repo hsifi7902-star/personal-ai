@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مدیریت خرید و فروش</title>
+  <style>
+    body {
+      font-family: Tahoma, sans-serif;
+      background: #f3f5f7;
+      margin: 0;
+      padding: 20px;
+      color: #222;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+    }
+    h2 { text-align: center; }
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      margin-top: 6px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 20px;
+      background: #176b52;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      font-size: 17px;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #edf7f1;
+      border-radius: 8px;
+      line-height: 2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>مدیریت خرید و فروش روغن</h2>
+
+    <label>مقدار خرید (کیلوگرم)</label>
+    <input id="weight" type="number" min="0" placeholder="مثلاً 400">
+
+    <label>قیمت خرید هر کیلو (تومان)</label>
+    <input id="buy" type="number" min="0" placeholder="قیمت خرید">
+
+    <label>قیمت فروش هر کیلو (تومان)</label>
+    <input id="sell" type="number" min="0" placeholder="قیمت فروش">
+
+    <label>هزینه جانبی هر کیلو (تومان)</label>
+    <input id="cost" type="number" min="0" placeholder="هزینه جانبی">
+
+    <button onclick="calculate()">محاسبه سود</button>
+
+    <div class="result" id="result">
+      نتیجه محاسبه اینجا نمایش داده می‌شود.
+    </div>
+  </div>
+
+  <script>
+    function calculate() {
+      const weight = Number(document.getElementById("weight").value);
+      const buy = Number(document.getElementById("buy").value);
+      const sell = Number(document.getElementById("sell").value);
+      const cost = Number(document.getElementById("cost").value);
+
+      if (weight <= 0 || buy <= 0 || sell <= 0) {
+        document.getElementById("result").innerText =
+          "لطفاً مقدار و قیمت‌های معتبر وارد کن.";
+        return;
+      }
+
+      const profitPerKg = sell - buy - cost;
+      const totalProfit = profitPerKg * weight;
+
+      document.getElementById("result").innerHTML =
+        "سود یا زیان هر کیلو: " + profitPerKg.toLocaleString("fa-IR") +
+        " تومان<br>" +
+        "سود یا زیان کل: " + totalProfit.toLocaleString("fa-IR") +
+        " تومان<br>" +
+        "مبلغ کل خرید: " + (buy * weight).toLocaleString("fa-IR") +
+        " تومان";
+    }
+  </script>
+</body>
+</html>
