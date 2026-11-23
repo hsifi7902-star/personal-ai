@@ -1,0 +1,13 @@
+{
+  "name": "personal-ai-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal AI business assistant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
