@@ -22,8 +22,6 @@ function setupAuth(app) {
     throw new Error("SESSION_SECRET must be at least 32 characters");
   }
 
-  app.set("trust proxy", 1);
-
   app.use(session({
     name: "personal_ai_session",
     store: new PgSession({
@@ -36,7 +34,7 @@ function setupAuth(app) {
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict",
       maxAge: 8 * 60 * 60 * 1000
     }
   }));
@@ -56,7 +54,11 @@ function setupAuth(app) {
         const username = req.body?.username?.trim();
         const password = req.body?.password;
 
-        if (!username || typeof password !== "string" || !password) {
+        if (
+          !username ||
+          typeof password !== "string" ||
+          !password
+        ) {
           return res.status(400).json({
             error: "نام کاربری و رمز عبور لازم است."
           });
@@ -79,7 +81,9 @@ function setupAuth(app) {
 
         req.session.regenerate((err) => {
           if (err) {
-            return res.status(500).json({ error: "خطای ایجاد نشست." });
+            return res.status(500).json({
+              error: "خطای ایجاد نشست."
+            });
           }
 
           req.session.user = {
@@ -90,7 +94,9 @@ function setupAuth(app) {
 
           req.session.save((saveError) => {
             if (saveError) {
-              return res.status(500).json({ error: "ذخیره نشست ناموفق بود." });
+              return res.status(500).json({
+                error: "ذخیره نشست ناموفق بود."
+              });
             }
 
             res.json({
@@ -101,7 +107,9 @@ function setupAuth(app) {
         });
       } catch (error) {
         console.error("Login error:", error.message);
-        res.status(500).json({ error: "خطای داخلی سرور." });
+        res.status(500).json({
+          error: "خطای داخلی سرور."
+        });
       }
     }
   );
@@ -109,12 +117,14 @@ function setupAuth(app) {
   router.post("/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) {
-        return res.status(500).json({ error: "خروج ناموفق بود." });
+        return res.status(500).json({
+          error: "خروج ناموفق بود."
+        });
       }
 
       res.clearCookie("personal_ai_session", {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "strict",
         secure: process.env.NODE_ENV === "production"
       });
 
@@ -124,7 +134,9 @@ function setupAuth(app) {
 
   router.get("/me", (req, res) => {
     if (!req.session?.user) {
-      return res.status(401).json({ authenticated: false });
+      return res.status(401).json({
+        authenticated: false
+      });
     }
 
     res.json({
@@ -138,15 +150,21 @@ function setupAuth(app) {
 
 function requireAuth(req, res, next) {
   if (!req.session?.user) {
-    return res.status(401).json({ error: "ابتدا وارد شوید." });
+    return res.status(401).json({
+      error: "ابتدا وارد شوید."
+    });
   }
+
   next();
 }
 
 function requireManager(req, res, next) {
   if (req.session?.user?.role !== "manager") {
-    return res.status(403).json({ error: "دسترسی مجاز نیست." });
+    return res.status(403).json({
+      error: "دسترسی مجاز نیست."
+    });
   }
+
   next();
 }
 
