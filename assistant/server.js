@@ -41,16 +41,30 @@ app.post("/api/chat", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "پیام خالی است." });
   }
 
-  const userId = req.session.user.id;
-  const client = await pool.connect();
+  const userId = String(req.session.user.id);
+  const userRole = req.session.user.role;
+
+  let client;
+  let transactionOpen = false;
 
   try {
+    client = await pool.connect();
+
     await client.query("BEGIN");
+    transactionOpen = true;
+
+    await client.query(
+      `SELECT
+        set_config('app.user_id', $1, true),
+        set_config('app.user_role', $2, true)`,
+      [userId, userRole]
+    );
 
     let result = await client.query(
       `SELECT id
        FROM conversations
-       WHERE user_id = $1 AND is_archived = FALSE
+       WHERE user_id = $1
+         AND is_archived = FALSE
        ORDER BY updated_at DESC
        LIMIT 1`,
       [userId]
@@ -92,9 +106,27 @@ app.post("/api/chat", requireAuth, async (req, res) => {
       [conversationId, message]
     );
 
+    await client.query(
+      `UPDATE conversations
+       SET updated_at = NOW()
+       WHERE id = $1`,
+      [conversationId]
+    );
+
     await client.query("COMMIT");
+    transactionOpen = false;
 
     const reply = await askAI(message, history);
+
+    await client.query("BEGIN");
+    transactionOpen = true;
+
+    await client.query(
+      `SELECT
+        set_config('app.user_id', $1, true),
+        set_config('app.user_role', $2, true)`,
+      [userId, userRole]
+    );
 
     await client.query(
       `INSERT INTO conversation_messages
@@ -103,23 +135,24 @@ app.post("/api/chat", requireAuth, async (req, res) => {
       [conversationId, reply]
     );
 
-    await client.query(
-      `UPDATE conversations
-       SET updated_at = NOW()
-       WHERE id = $1`,
-      [conversationId]
-    );
+    await client.query("COMMIT");
+    transactionOpen = false;
 
     res.json({ reply });
 
   } catch (error) {
-    await client.query("ROLLBACK").catch(() => {});
+    if (client && transactionOpen) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+
     console.error("Chat error:", error.message);
+
     res.status(500).json({
       error: "در پردازش یا ذخیره پیام مشکلی پیش آمد."
     });
+
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
