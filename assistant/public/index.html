@@ -6,18 +6,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>دستیار هوشمند من</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#f2f4f7;font-family:tahoma,Arial}
-header{background:#172554;color:white;padding:20px;text-align:center}
-main{max-width:700px;margin:25px auto;padding:15px}
-#chat{background:white;border-radius:14px;padding:15px;min-height:60vh;overflow-y:auto}
-.msg{padding:12px;margin:10px 0;border-radius:12px;max-width:85%;line-height:1.9;white-space:pre-wrap}
-.user{background:#dbeafe;margin-right:auto}
-.bot{background:#eee;margin-left:auto}
-form{display:flex;gap:8px;margin-top:15px}
-input{flex:1;padding:14px;border:1px solid #ccc;border-radius:10px;font-size:16px}
-button{padding:12px 20px;background:#1d4ed8;color:white;border:0;border-radius:10px}
-button:disabled{opacity:.5}
+body{margin:0;background:#f2f4f7;font-family:tahoma}
+header{background:#172554;color:white;padding:18px;text-align:center}
+main{max-width:650px;margin:25px auto;padding:15px}
+.panel{background:white;padding:20px;border-radius:14px;margin-bottom:15px}
+input{width:100%;padding:13px;margin:7px 0;box-sizing:border-box;border:1px solid #ccc;border-radius:9px}
+button{padding:12px 20px;background:#1d4ed8;color:white;border:0;border-radius:9px;cursor:pointer}
+#chat{display:none;min-height:50vh}
+.msg{padding:12px;margin:10px 0;border-radius:10px;line-height:1.8;white-space:pre-wrap}
+.user{background:#dbeafe}
+.bot{background:#eee}
+#form{display:flex;gap:8px}
+#form input{flex:1}
+#status{color:#b91c1c}
 </style>
 </head>
 <body>
@@ -26,53 +27,26 @@ button:disabled{opacity:.5}
 <p>مرکز مدیریت کسب‌وکار</p>
 </header>
 <main>
-<div id="chat">
-<div class="msg bot">سلام! آماده‌ام اطلاعات کسب‌وکارت را دریافت کنم.</div>
+<section class="panel" id="login">
+<h3>ورود به حساب</h3>
+<input id="username" placeholder="نام کاربری">
+<input id="password" type="password" placeholder="رمز عبور">
+<button id="loginButton">ورود</button>
+<p id="status"></p>
+</section>
+
+<section class="panel" id="chat">
+<p id="welcome"></p>
+<button id="logoutButton">خروج</button>
+<div id="messages">
+<div class="msg bot">سلام! آماده‌ام.</div>
 </div>
 <form id="form">
 <input id="message" placeholder="پیامت را بنویس..." autocomplete="off">
 <button id="send" type="submit">ارسال</button>
 </form>
+</section>
 </main>
-<script>
-const form=document.getElementById("form");
-const input=document.getElementById("message");
-const chat=document.getElementById("chat");
-const send=document.getElementById("send");
-
-function addMessage(text,type){
- const msg=document.createElement("div");
- msg.className="msg "+type;
- msg.textContent=text;
- chat.appendChild(msg);
- chat.scrollTop=chat.scrollHeight;
-}
-
-form.addEventListener("submit",async function(e){
- e.preventDefault();
- const value=input.value.trim();
- if(!value)return;
-
- addMessage(value,"user");
- input.value="";
- send.disabled=true;
-
- try{
-  const response=await fetch("/api/chat",{
-   method:"POST",
-   headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({message:value})
-  });
-  const data=await response.json();
-  if(!response.ok)throw new Error(data.error||"خطا");
-  addMessage(data.reply||"پاسخی دریافت نشد.","bot");
- }catch(error){
-  addMessage("ارتباط با سرور برقرار نشد. پس از راه‌اندازی سرور دوباره تلاش کن.","bot");
- }finally{
-  send.disabled=false;
-  input.focus();
- }
-});
-</script>
+<script src="/app.js" defer></script>
 </body>
 </html>
