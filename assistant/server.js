@@ -7,11 +7,16 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/api/health", (req, res) => {
+app.post("/api/chat", (req, res) => {
+  const message = req.body?.message?.trim();
+
+  if (!message) {
+    return res.status(400).json({ error: "پیام خالی است." });
+  }
+
   res.json({
-    status: "ok",
-    assistant: "Personal AI",
-    version: "1.0.0"
+    received: true,
+    reply: "پیامت دریافت شد. اتصال هوش مصنوعی در مرحله بعد فعال می‌شود."
   });
 });
 
