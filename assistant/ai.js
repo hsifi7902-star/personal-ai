@@ -8,6 +8,13 @@ async function askAI(message, history = []) {
     return "اتصال هوش مصنوعی هنوز تنظیم نشده است.";
   }
 
+  const safeHistory = history
+    .filter(item =>
+      ["user", "assistant"].includes(item.role) &&
+      typeof item.content === "string"
+    )
+    .slice(-20);
+
   try {
     const response = await fetch(
       `${baseURL.replace(/\/+$/, "")}/chat/completions`,
@@ -22,9 +29,13 @@ async function askAI(message, history = []) {
           messages: [
             {
               role: "system",
-              content: "تو دستیار هوشمند مدیریت کسب‌وکار هستی. فارسی، دقیق و کوتاه پاسخ بده."
+              content:
+                "تو دستیار هوشمند مدیریت کسب‌وکار هستی. " +
+                "فارسی، دقیق و کوتاه پاسخ بده. " +
+                "اطلاعات نامطمئن را قطعی اعلام نکن. " +
+                "برای اطلاعات ناقص سؤال روشن بپرس."
             },
-            ...history,
+            ...safeHistory,
             { role: "user", content: message }
           ]
         })
@@ -36,12 +47,13 @@ async function askAI(message, history = []) {
     }
 
     const data = await response.json();
+
     return data.choices?.[0]?.message?.content ||
       "پاسخی از هوش مصنوعی دریافت نشد.";
 
   } catch (error) {
     console.error("AI error:", error.message);
-    return "در ارتباط با هوش مصنوعی مشکلی پیش آمد.";
+    throw error;
   }
 }
 
