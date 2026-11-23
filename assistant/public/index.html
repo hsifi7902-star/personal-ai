@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -9,13 +10,14 @@
 body{margin:0;background:#f2f4f7;font-family:tahoma,Arial}
 header{background:#172554;color:white;padding:20px;text-align:center}
 main{max-width:700px;margin:25px auto;padding:15px}
-#chat{background:white;border-radius:14px;padding:15px;min-height:60vh}
-.msg{padding:12px;margin:10px 0;border-radius:12px;max-width:85%;line-height:1.9}
+#chat{background:white;border-radius:14px;padding:15px;min-height:60vh;overflow-y:auto}
+.msg{padding:12px;margin:10px 0;border-radius:12px;max-width:85%;line-height:1.9;white-space:pre-wrap}
 .user{background:#dbeafe;margin-right:auto}
 .bot{background:#eee;margin-left:auto}
 form{display:flex;gap:8px;margin-top:15px}
 input{flex:1;padding:14px;border:1px solid #ccc;border-radius:10px;font-size:16px}
 button{padding:12px 20px;background:#1d4ed8;color:white;border:0;border-radius:10px}
+button:disabled{opacity:.5}
 </style>
 </head>
 <body>
@@ -29,24 +31,47 @@ button{padding:12px 20px;background:#1d4ed8;color:white;border:0;border-radius:1
 </div>
 <form id="form">
 <input id="message" placeholder="پیامت را بنویس..." autocomplete="off">
-<button type="submit">ارسال</button>
+<button id="send" type="submit">ارسال</button>
 </form>
 </main>
 <script>
 const form=document.getElementById("form");
 const input=document.getElementById("message");
 const chat=document.getElementById("chat");
+const send=document.getElementById("send");
 
-form.addEventListener("submit",function(e){
-e.preventDefault();
-const value=input.value.trim();
-if(!value)return;
-const msg=document.createElement("div");
-msg.className="msg user";
-msg.textContent=value;
-chat.appendChild(msg);
-input.value="";
-chat.scrollTop=chat.scrollHeight;
+function addMessage(text,type){
+ const msg=document.createElement("div");
+ msg.className="msg "+type;
+ msg.textContent=text;
+ chat.appendChild(msg);
+ chat.scrollTop=chat.scrollHeight;
+}
+
+form.addEventListener("submit",async function(e){
+ e.preventDefault();
+ const value=input.value.trim();
+ if(!value)return;
+
+ addMessage(value,"user");
+ input.value="";
+ send.disabled=true;
+
+ try{
+  const response=await fetch("/api/chat",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({message:value})
+  });
+  const data=await response.json();
+  if(!response.ok)throw new Error(data.error||"خطا");
+  addMessage(data.reply||"پاسخی دریافت نشد.","bot");
+ }catch(error){
+  addMessage("ارتباط با سرور برقرار نشد. پس از راه‌اندازی سرور دوباره تلاش کن.","bot");
+ }finally{
+  send.disabled=false;
+  input.focus();
+ }
 });
 </script>
 </body>
