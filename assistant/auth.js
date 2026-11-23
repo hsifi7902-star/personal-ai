@@ -7,7 +7,10 @@ const { Pool } = require("pg");
 const rateLimit = require("express-rate-limit");
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_SSL === "true"
+    ? { rejectUnauthorized: true }
+    : undefined
 });
 
 function setupAuth(app) {
@@ -15,9 +18,14 @@ function setupAuth(app) {
     throw new Error("DATABASE_URL and SESSION_SECRET are required");
   }
 
+  if (process.env.SESSION_SECRET.length < 32) {
+    throw new Error("SESSION_SECRET must be at least 32 characters");
+  }
+
   app.set("trust proxy", 1);
 
   app.use(session({
+    name: "personal_ai_session",
     store: new PgSession({
       pool,
       createTableIfMissing: true
@@ -39,13 +47,16 @@ function setupAuth(app) {
     "/login",
     rateLimit({
       windowMs: 15 * 60 * 1000,
-      limit: 5
+      limit: 5,
+      standardHeaders: "draft-8",
+      legacyHeaders: false
     }),
     async (req, res) => {
       try {
-        const { username, password } = req.body;
+        const username = req.body?.username?.trim();
+        const password = req.body?.password;
 
-        if (!username || !password) {
+        if (!username || typeof password !== "string" || !password) {
           return res.status(400).json({
             error: "نام کاربری و رمز عبور لازم است."
           });
@@ -68,7 +79,7 @@ function setupAuth(app) {
 
         req.session.regenerate((err) => {
           if (err) {
-            return res.status(500).json({ error: "خطای ورود." });
+            return res.status(500).json({ error: "خطای ایجاد نشست." });
           }
 
           req.session.user = {
@@ -77,9 +88,15 @@ function setupAuth(app) {
             role: user.role
           };
 
-          res.json({
-            success: true,
-            user: req.session.user
+          req.session.save((saveError) => {
+            if (saveError) {
+              return res.status(500).json({ error: "ذخیره نشست ناموفق بود." });
+            }
+
+            res.json({
+              success: true,
+              user: req.session.user
+            });
           });
         });
       } catch (error) {
@@ -90,14 +107,23 @@ function setupAuth(app) {
   );
 
   router.post("/logout", (req, res) => {
-    req.session.destroy(() => {
-      res.clearCookie("connect.sid");
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "خروج ناموفق بود." });
+      }
+
+      res.clearCookie("personal_ai_session", {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+
       res.json({ success: true });
     });
   });
 
   router.get("/me", (req, res) => {
-    if (!req.session.user) {
+    if (!req.session?.user) {
       return res.status(401).json({ authenticated: false });
     }
 
