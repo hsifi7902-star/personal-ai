@@ -10,11 +10,26 @@ const { setupAuth, requireAuth } = require("./auth");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"]
+    }
+  }
+}));
+
 app.use(express.json({ limit: "1mb" }));
-app.use(express.static(path.join(__dirname, "public")));
 
 setupAuth(app);
+
+app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
@@ -31,7 +46,7 @@ app.post("/api/chat", requireAuth, async (req, res) => {
     const reply = await askAI(message);
     res.json({ reply });
   } catch (error) {
-    console.error(error);
+    console.error("Chat error:", error.message);
     res.status(500).json({ error: "خطا در پاسخ‌گویی." });
   }
 });
