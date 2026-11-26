@@ -1,18 +1,18 @@
 
 -- Personal AI Assistant
 -- Core business database schema
--- Run assistant/database/auth.sql first.
+-- Run after database/auth.sql.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. Buyer and seller profiles
+-- Unique customer numbering
 CREATE SEQUENCE customer_number_seq START 1001;
 
+-- 1. Buyer and seller profiles
 CREATE TABLE contacts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    customer_number BIGINT NOT NULL
-        UNIQUE DEFAULT nextval('customer_number_seq'),
+    customer_number BIGINT NOT NULL UNIQUE
+        DEFAULT nextval('customer_number_seq'),
 
     profile_role TEXT NOT NULL
         CHECK (profile_role IN ('buyer', 'seller')),
@@ -32,7 +32,6 @@ CREATE TABLE contacts (
         CHECK (status IN ('active', 'inactive')),
 
     notes TEXT,
-
     created_by BIGINT REFERENCES assistant_users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -42,28 +41,28 @@ CREATE INDEX contacts_phone_idx ON contacts(phone);
 CREATE INDEX contacts_region_idx ON contacts(region_number);
 CREATE INDEX contacts_role_idx ON contacts(profile_role);
 
--- 2. Prevent duplicate buyer phone numbers
-CREATE UNIQUE INDEX contacts_buyer_phone_unique
-ON contacts(phone)
-WHERE profile_role = 'buyer' AND phone IS NOT NULL;
+-- Prevent duplicate phone numbers within the same profile role
+CREATE UNIQUE INDEX contacts_phone_role_unique
+ON contacts(profile_role, phone)
+WHERE phone IS NOT NULL;
 
--- 3. Purchase and sale transactions
+-- 2. Purchases and sales
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     operation_type TEXT NOT NULL
         CHECK (operation_type IN ('buy', 'sell')),
 
-    contact_id UUID NOT NULL REFERENCES contacts(id),
+    contact_id UUID REFERENCES contacts(id),
 
-    transaction_at TIMESTAMPTZ NOT NULL,
+    transaction_at TIMESTAMPTZ,
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     performed_by BIGINT REFERENCES assistant_users(id),
     recorded_by BIGINT REFERENCES assistant_users(id),
 
-    weight_kg NUMERIC(14,3) NOT NULL
-        CHECK (weight_kg > 0),
+    weight_kg NUMERIC(14,3)
+        CHECK (weight_kg IS NULL OR weight_kg > 0),
 
     purchase_price_per_kg NUMERIC(16,2)
         CHECK (purchase_price_per_kg IS NULL OR purchase_price_per_kg >= 0),
@@ -88,7 +87,27 @@ CREATE TABLE transactions (
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'confirmed', 'cancelled')),
 
-    notes TEXT
+    notes TEXT,
+
+    CHECK (
+        (operation_type = 'buy' AND sale_price_per_kg IS NULL)
+        OR
+        (operation_type = 'sell' AND purchase_price_per_kg IS NULL)
+    ),
+
+    CHECK (
+        status <> 'confirmed'
+        OR (
+            contact_id IS NOT NULL
+            AND transaction_at IS NOT NULL
+            AND weight_kg IS NOT NULL
+            AND (
+                (operation_type = 'buy' AND purchase_price_per_kg IS NOT NULL)
+                OR
+                (operation_type = 'sell' AND sale_price_per_kg IS NOT NULL)
+            )
+        )
+    )
 );
 
 CREATE INDEX transactions_date_idx ON transactions(transaction_at);
@@ -96,7 +115,7 @@ CREATE INDEX transactions_contact_idx ON transactions(contact_id);
 CREATE INDEX transactions_type_idx ON transactions(operation_type);
 CREATE INDEX transactions_status_idx ON transactions(status);
 
--- 4. Incoming text messages
+-- 3. Incoming messages
 CREATE TABLE messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sender_id BIGINT REFERENCES assistant_users(id),
@@ -107,7 +126,7 @@ CREATE TABLE messages (
         CHECK (processing_status IN ('received', 'processed', 'needs_review'))
 );
 
--- 5. Audit history
+-- 4. Audit history
 CREATE TABLE audit_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     actor_id BIGINT REFERENCES assistant_users(id),
@@ -119,7 +138,7 @@ CREATE TABLE audit_log (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 6. Contact follow-ups
+-- 5. Contact follow-ups
 CREATE TABLE contact_followups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     contact_id UUID NOT NULL REFERENCES contacts(id),
@@ -131,7 +150,7 @@ CREATE TABLE contact_followups (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 7. Five business regions
+-- 6. Five custom business regions
 CREATE TABLE business_regions (
     region_number SMALLINT PRIMARY KEY
         CHECK (region_number BETWEEN 1 AND 5),
