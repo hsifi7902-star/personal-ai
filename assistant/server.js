@@ -10,6 +10,8 @@ const { setupAuth, requireAuth, pool } = require("./auth");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set("trust proxy", 1);
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -27,7 +29,41 @@ app.use(helmet({
 
 app.use(express.json({ limit: "1mb" }));
 
+// Basic CSRF protection: accept state-changing requests
+// only when they originate from this same website.
+app.use((req, res, next) => {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    return next();
+  }
+
+  const origin = req.get("origin");
+
+  if (!origin) {
+    return res.status(403).json({
+      error: "درخواست نامعتبر است."
+    });
+  }
+
+  try {
+    const requestOrigin = new URL(origin).origin;
+    const expectedOrigin = `${req.protocol}://${req.get("host")}`;
+
+    if (requestOrigin !== expectedOrigin) {
+      return res.status(403).json({
+        error: "درخواست نامعتبر است."
+      });
+    }
+
+    next();
+  } catch {
+    return res.status(403).json({
+      error: "درخواست نامعتبر است."
+    });
+  }
+});
+
 setupAuth(app);
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/health", (req, res) => {
@@ -38,7 +74,9 @@ app.post("/api/chat", requireAuth, async (req, res) => {
   const message = req.body?.message?.trim();
 
   if (!message) {
-    return res.status(400).json({ error: "پیام خالی است." });
+    return res.status(400).json({
+      error: "پیام خالی است."
+    });
   }
 
   const userId = String(req.session.user.id);
