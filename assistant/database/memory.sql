@@ -1,5 +1,6 @@
 
 -- Persistent conversation memory
+-- Run after database/auth.sql and database/schema.sql.
 
 CREATE TABLE conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -28,7 +29,7 @@ ON conversation_messages(conversation_id, created_at);
 
 CREATE TABLE assistant_memories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id BIGINT REFERENCES assistant_users(id),
+    user_id BIGINT NOT NULL REFERENCES assistant_users(id),
     memory_category TEXT NOT NULL,
     memory_key TEXT NOT NULL,
     memory_value TEXT NOT NULL,
@@ -37,6 +38,3 @@ CREATE TABLE assistant_memories (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(user_id, memory_category, memory_key)
 );
-
-CREATE INDEX assistant_memories_user_idx
-ON assistant_memories(user_id, memory_category);
